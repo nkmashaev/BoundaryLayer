@@ -1,0 +1,5 @@
+*.smod
+*.mod
+*.plt
+*.dat
+*_bin
