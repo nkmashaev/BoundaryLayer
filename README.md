@@ -16,6 +16,5 @@ Programs are tested on Ubuntu 20.04. GNU Fortran 9.3.0 are used.
 
 ## Result
 
-The outcome is a computed field with distribution of skin
+The outcome is a computed field with the distribution of skin
 friction coefficient over the plate
-
