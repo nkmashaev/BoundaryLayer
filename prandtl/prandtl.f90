@@ -59,7 +59,7 @@ PROGRAM SHIMUNI
 		V_MATR(NUMB_I, 1) = V_MATR(NUMB_Y, 1)
 		
 		OPEN(COMMON_IO, FILE=RESIDUALS_FILE)
-		CALL SHIMUNI_SOLVER(COMMON_IO, NUMB_I, NUMB_J, SMAX, &
+		CALL PRANDTL_SOLVER(COMMON_IO, NUMB_I, NUMB_J, SMAX, &
 							DX, DY, MU, U0, V0, P0, &
 							EPS, P_ARR, U_MATR, V_MATR)
 		CLOSE(COMMON_IO)
@@ -232,7 +232,7 @@ PROGRAM SHIMUNI
 			
 		END FUNCTION CREATE_DIM
 		
-		SUBROUTINE SHIMUNI_SOLVER(	IO, &
+		SUBROUTINE PRANDTL_SOLVER(	IO, &
 									NUMB_I, &
 									NUMB_J, &
 									SMAX, &
@@ -279,20 +279,15 @@ PROGRAM SHIMUNI
 															C_ARR, &
 															D_ARR, &
 															U_ARR, &
-															V_ARR, &
-															F_ARR, &
-															Z_ARR, &
-															W_ARR
+															V_ARR
 			REAL(8)										::	G_NORM, &
 															G_CURR, &
 															G_IN, &
 															MU_DIV, &
 															W_INTEGRAL, &
 															Z_INTEGRAL, &
-															RES_U, &
-															RES_V, &
 															TEMP_RES, &
-															V_NORM
+															F_SQR
 			INTEGER(4)									::	I, &
 															S, &
 															K
@@ -303,24 +298,17 @@ PROGRAM SHIMUNI
 			ALLOCATE(B_ARR(NUMB_I))
 			ALLOCATE(C_ARR(NUMB_I))
 			ALLOCATE(D_ARR(NUMB_I))
-			ALLOCATE(F_ARR(NUMB_I))
-			ALLOCATE(Z_ARR(NUMB_I))
-			ALLOCATE(W_ARR(NUMB_I))
 			
 			MU_DIV = MU / (DY * DY)
-			
+			F_SQR = (DY * (NUMB_I - 1)) ** 2.0D0
 			DO I = 2, NUMB_I - 1, 1
-				F_ARR(I) = -1.0D0 / DX
 				U_ARR(I) = U_MATR(I, 1)
 				V_ARR(I) = V_MATR(I, 1)
 			ENDDO
-			F_ARR(1) = 0.0D0
-			F_ARR(NUMB_I) = 0.0D0
 			U_ARR(1) = -U_ARR(2)
 			U_ARR(NUMB_I) = U_ARR(NUMB_I - 1)
 			V_ARR(1) = -V_ARR(2)
 			V_ARR(NUMB_I) = V_ARR(NUMB_I - 1)
-			V_NORM = SQRT(U0 * U0 + V0 * V0)
 			
 			G_IN = TRAPEZOIDAL_INTEGRAL(U_ARR, NUMB_I, DY)
 			G_NORM = G_IN
@@ -328,9 +316,8 @@ PROGRAM SHIMUNI
 			DO J = 2, NUMB_J, 1
 				P_ARR(J) = P_ARR(J - 1)
 				S = 0
-				RES_U = 2.0D0 * EPS
-				RES_V = 2.0D0 * EPS
-				DO WHILE ((S < SMAX).AND.((RES_U.GE.EPS).OR.(RES_V.GE.EPS)))
+				TEMP_RES = 2.0D0 * EPS
+				DO WHILE ((S < SMAX).AND.(TEMP_RES.GE.EPS))
 					K = K + 1
 					S = S + 1
 					A_ARR(1) = 0.0D0
@@ -342,7 +329,7 @@ PROGRAM SHIMUNI
 						A_ARR(I) = -0.5D0 * V_ARR(I - 1) / DY - MU_DIV
 						B_ARR(I) = U_ARR(I) / DX + 2.0D0 * MU_DIV
 						C_ARR(I) = 0.5D0 * V_ARR(I + 1) / DY - MU_DIV
-						D_ARR(I) = (U_MATR(I, J - 1) ** 2.0D0 + P_ARR(J - 1)) / DX
+						D_ARR(I) = (U_MATR(I, J - 1) ** 2.0D0 + P_ARR(J - 1) - P_ARR(J)) / DX
 					ENDDO
 					
 					A_ARR(NUMB_I) = -1.0D0
@@ -350,30 +337,19 @@ PROGRAM SHIMUNI
 					C_ARR(NUMB_I) = 0.0D0
 					D_ARR(NUMB_I) = 0.0D0
 					
-					CALL TDMA(A_ARR, B_ARR, C_ARR, D_ARR, Z_ARR, NUMB_I)
-					CALL TDMA(A_ARR, B_ARR, C_ARR, F_ARR, W_ARR, NUMB_I)
-					W_INTEGRAL = TRAPEZOIDAL_INTEGRAL(W_ARR, NUMB_I, DY)
-					Z_INTEGRAL = TRAPEZOIDAL_INTEGRAL(Z_ARR, NUMB_I, DY)
-					P_ARR(J) = (G_IN + (V_ARR(1) - V_ARR(NUMB_I)) * DX - Z_INTEGRAL) / W_INTEGRAL
-					RES_U = 0.0D0
-					DO I = 1, NUMB_I, 1
-						TEMP_RES = U_ARR(I)
-						U_ARR(I) = Z_ARR(I) + W_ARR(I) * P_ARR(J)
-						RES_U = MAX(RES_U, ABS(TEMP_RES - U_ARR(I))/V_NORM)
-					ENDDO
+					CALL TDMA(A_ARR, B_ARR, C_ARR, D_ARR, U_ARR, NUMB_I)
+
 					
 					G_CURR = TRAPEZOIDAL_INTEGRAL(U_ARR, NUMB_I, DY)
 					V_ARR(1) = 0.25D0*DY *(U_ARR(2) + U_ARR(1) - U_MATR(2,J-1) - U_MATR(1,J-1))/DX
-					RES_V = V_ARR(1)
 					DO I = 2, NUMB_I, 1
-						TEMP_RES = V_ARR(I)
 						V_ARR(I) = V_ARR(I - 1) - 0.5D0*DY * (U_ARR(I) + U_ARR(I-1) - U_MATR(I,J-1) - U_MATR(I-1,J-1))/DX
-						RES_V = MAX(RES_V, ABS(TEMP_RES - V_ARR(I))/V_NORM)
 					ENDDO
+					P_ARR(J) = P_ARR(J) - G_IN * (V_ARR(NUMB_I) - V_ARR(1)) * DX / F_SQR
 					
-					TEMP_RES = G_CURR/G_NORM
-					WRITE(*, *) K, S, (J - 0.5D0)* DX, TEMP_RES, RES_U, RES_V
-					WRITE(IO, *) K, S, (J - 0.5D0)* DX, TEMP_RES, RES_U, RES_V
+					TEMP_RES = ABS(G_CURR - G_IN)/G_NORM
+					WRITE(*, *) K, S, (J - 0.5D0)* DX, TEMP_RES
+					WRITE(IO, *) K, S, (J - 0.5D0)* DX, TEMP_RES
 				ENDDO
 				
 				G_IN = G_CURR
@@ -383,9 +359,6 @@ PROGRAM SHIMUNI
 				ENDDO	
 			ENDDO
 			
-			DEALLOCATE(W_ARR)
-			DEALLOCATE(Z_ARR)
-			DEALLOCATE(F_ARR)
 			DEALLOCATE(D_ARR)
 			DEALLOCATE(C_ARR)
 			DEALLOCATE(B_ARR)
@@ -393,7 +366,7 @@ PROGRAM SHIMUNI
 			DEALLOCATE(V_ARR)
 			DEALLOCATE(U_ARR)
 															
-		END SUBROUTINE SHIMUNI_SOLVER
+		END SUBROUTINE PRANDTL_SOLVER
 		
 		SUBROUTINE WRITE_TO_TECPLOT(IO, 		&
 									NUMB_X,		&
