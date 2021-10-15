@@ -348,9 +348,14 @@ PROGRAM NAVIERSTOKES
 					V_MATR(1, J) = -V_MATR(2, J)
 					P_MATR(1, J) = P_MATR(2, J)
 					
+					!SYMMETRY
 					U_MATR(NUMB_I, J) = U_MATR(NUMB_I - 1, J)
 					V_MATR(NUMB_I, J) = V_MATR(NUMB_I - 1, J)
 					P_MATR(NUMB_I, J) = P_MATR(NUMB_I - 1, J)
+					!OUTER FLOW CONDITION
+					!U_MATR(NUMB_I, J) = 2.0D0 * U0 - U_MATR(NUMB_I - 1, J)
+					!V_MATR(NUMB_I, J) = 2.0D0 * V0 - V_MATR(NUMB_I - 1, J)
+					!P_MATR(NUMB_I, J) = P_MATR(NUMB_I - 1, J)
 				ENDDO
 				
 				WRITE(*, *) N, RES_C_MAX, RES_X_MAX, RES_Y_MAX
