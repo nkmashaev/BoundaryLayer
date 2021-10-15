@@ -348,8 +348,8 @@ PROGRAM NAVIERSTOKES
 					V_MATR(1, J) = -V_MATR(2, J)
 					P_MATR(1, J) = P_MATR(2, J)
 					
-					U_MATR(NUMB_I, J) = 2.0D0 * U0 - U_MATR(NUMB_I - 1, J)
-					V_MATR(NUMB_I, J) = 2.0D0 * V0 - V_MATR(NUMB_I - 1, J)
+					U_MATR(NUMB_I, J) = U_MATR(NUMB_I - 1, J)
+					V_MATR(NUMB_I, J) = V_MATR(NUMB_I - 1, J)
 					P_MATR(NUMB_I, J) = P_MATR(NUMB_I - 1, J)
 				ENDDO
 				
